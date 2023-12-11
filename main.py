@@ -84,20 +84,7 @@ async def cmd_search(message: types.Message):
     response = f"Список товаров:\n{catalog_str}"
     await message.reply(response)
 
-@dp.message_handler(content_types=types.ContentType.TEXT)
-async def handle_text(message: types.Message):
-    user_input = message.text
-    id = message.from_user.id
-    user[f"product_1_{id}"] = worksheet.row_values(worksheet.find("Название сети").row)
-    user[f"product_1_{id}"] = [item.lower() for item in user[f"product_1_{id}"]]
-    user[f"product_1_{id}"].pop(0)
-    user[f"product_1_{id}"].pop(0)
-    user[f"product_1_{id}"].pop(0)
-    keyboard = types.InlineKeyboardMarkup()
-    if user_input.lower() in user[f"product_1_{id}"]:
-        callback_data = f'select_product_{user_input}'
-        keyboard.add(types.InlineKeyboardButton(text=user_input, callback_data=callback_data))
-        await message.reply(f"Информация о товаре {user_input}: В наличии!\nПодтвердите товар нажав на кнопку.", reply_markup=keyboard)
+
 
 @dp.message_handler(text="Выбрать товар")
 async def command(message: types.Message, state: FSMContext):
@@ -149,6 +136,7 @@ async def command(message: types.Message, state: FSMContext):
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "btn2", state=States.TOVAR)
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup()
+    await bot.answer_callback_query(callback_query.id)
     global user
     id = callback_query.from_user.id
     try:
@@ -175,6 +163,7 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "btn1", state=States.TOVAR)
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup()
+    await bot.answer_callback_query(callback_query.id)
     global user
     id = callback_query.from_user.id
     try:
@@ -200,6 +189,7 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data.startswith("select_product_"), state="*")
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback_query.id)
     global user
     id = callback_query.from_user.id
     user[f"tovar_{id}"] = str(callback_query.data[15:])
@@ -255,6 +245,13 @@ async def command(message: types.Message, state: FSMContext):
                     user[f"num_city_{id}"] = i
                     user[f"city_in_radius_{id}"].append(user[f"cites_{id}"][i])
                     print(user[f"cites_{id}"][i])
+                    break
+                if user[f"radius_{id}"] < distance:
+                    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+                    button_cancel_product = types.KeyboardButton("Выйти")
+                    markup.add(button_cancel_product)
+                    await state.finish()
+                    await bot.send_message(id, f'Увы! В данном радиусе ничего не нашлось', reply_markup=markup)
                     break
             except:
                 pass
@@ -371,6 +368,29 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
         await callback_query.message.edit_text('Это был первый ближайший магазин', reply_markup=inline_kb)
         return
     await state.finish()
+
+@dp.message_handler(content_types=types.ContentType.TEXT)
+async def handle_text(message: types.Message):
+    user_input = message.text
+    id = message.from_user.id
+    user[f"product_1_{id}"] = worksheet.row_values(worksheet.find("Название сети").row)
+    user[f"list_product_{id}"] = worksheet.row_values(worksheet.find("Название сети").row)
+    user[f"product_1_{id}"] = [item.lower() for item in user[f"product_1_{id}"]]
+    user[f"product_1_{id}"].pop(0)
+    user[f"product_1_{id}"].pop(0)
+    user[f"product_1_{id}"].pop(0)
+
+    user[f"list_product_{id}"].pop(0)
+    user[f"list_product_{id}"].pop(0)
+    user[f"list_product_{id}"].pop(0)
+    keyboard = types.InlineKeyboardMarkup()
+    if user_input.lower() in user[f"product_1_{id}"]:
+        ind = user[f"product_1_{id}"].index(user_input.lower())
+        tovar_ =  user[f"list_product_{id}"][int(ind)]
+        print(tovar_)
+        callback_data = f'select_product_{tovar_}'
+        keyboard.add(types.InlineKeyboardButton(text=tovar_, callback_data=callback_data))
+        await message.reply(f"Информация о товаре {tovar_}: В наличии!\nПодтвердите товар нажав на кнопку.", reply_markup=keyboard)
 
 if __name__ == '__main__':
     from aiogram import executor
