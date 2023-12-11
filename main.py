@@ -255,18 +255,20 @@ async def command(message: types.Message, state: FSMContext):
                     break
             except:
                 pass
-        location = geolocator.geocode(user[f"city_in_radius_{id}"][user[f"city_{id}"]])
-        user_cord = (user[f"latitude_{id}"],user[f"longitude_{id}"])
-        inline_btn1 = InlineKeyboardButton('<< Назад', callback_data='btn_back')
-        inline_btn2 = InlineKeyboardButton('Вперёд >>', callback_data='btn_next')
-        inline_kb = InlineKeyboardMarkup(row_width=2)
-        inline_kb.add(inline_btn1, inline_btn2)
-        shop_cord = (location.latitude,location.longitude)
-        await bot.send_message(id,f'Товар: {user[f"tovar_{id}"]}\n\nНаходиться по адресу: {user[f"city_in_radius_{id}"][user[f"city_{id}"]]}\n\nНа расстоянии: {round(geodesic(user_cord,shop_cord).meters)} метрах от вас.', reply_markup=inline_kb)
-        location_message = await bot.send_location(chat_id,location.latitude,location.longitude)
-        user[f"location_message_id_{id}"] = location_message.message_id
-        await state.finish()   
-
+        try:
+            location = geolocator.geocode(user[f"city_in_radius_{id}"][user[f"city_{id}"]])
+            user_cord = (user[f"latitude_{id}"],user[f"longitude_{id}"])
+            inline_btn1 = InlineKeyboardButton('<< Назад', callback_data='btn_back')
+            inline_btn2 = InlineKeyboardButton('Вперёд >>', callback_data='btn_next')
+            inline_kb = InlineKeyboardMarkup(row_width=2)
+            inline_kb.add(inline_btn1, inline_btn2)
+            shop_cord = (location.latitude,location.longitude)
+            await bot.send_message(id,f'Товар: {user[f"tovar_{id}"]}\n\nНаходиться по адресу: {user[f"city_in_radius_{id}"][user[f"city_{id}"]]}\n\nНа расстоянии: {round(geodesic(user_cord,shop_cord).meters)} метрах от вас.', reply_markup=inline_kb)
+            location_message = await bot.send_location(chat_id,location.latitude,location.longitude)
+            user[f"location_message_id_{id}"] = location_message.message_id
+            await state.finish()   
+        except:
+            pass
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "btn_next")
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
     global user
@@ -388,7 +390,7 @@ async def handle_text(message: types.Message):
         ind = user[f"product_1_{id}"].index(user_input.lower())
         tovar_ =  user[f"list_product_{id}"][int(ind)]
         print(tovar_)
-        callback_data = f'select_product_{tovar_}'
+        callback_data = f'select_product_{tovar_}'  
         keyboard.add(types.InlineKeyboardButton(text=tovar_, callback_data=callback_data))
         await message.reply(f"Информация о товаре {tovar_}: В наличии!\nПодтвердите товар нажав на кнопку.", reply_markup=keyboard)
 
