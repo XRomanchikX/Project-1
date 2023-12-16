@@ -8,8 +8,14 @@ import gspread
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from google.oauth2.service_account import Credentials
 import buttons
+from urllib.parse import quote
 from geopy.distance import geodesic
 from geopy.geocoders import Nominatim
+
+def lisst(in1 , list1, name):
+    for i in range(len(in1)):
+        if in1[i][0] == name:
+            list1.append(in1[i])
 
 global user
 user = {} # база пользователей
@@ -19,6 +25,7 @@ BOT_TOKEN = '5751694717:AAEkmL0Os01qZgbqCJ_K8i7USDMXUgfQe5g'
 scope = ['https://www.googleapis.com/auth/spreadsheets']
 credentials = Credentials.from_service_account_file('account.json')
 client = gspread.authorize(credentials.with_scopes(scope))
+#sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1B5YxE55su5tdpmjXminkjVY_DyWPuMbffoP7U1abxf8/edit#gid=636993454')
 sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1B5YxE55su5tdpmjXminkjVY_DyWPuMbffoP7U1abxf8/edit#gid=636993454')
 worksheet = sheet.get_worksheet(0)
 
@@ -56,6 +63,8 @@ async def cmd_search(message: types.Message):
     id = message.from_user.id
     user[f"all_cites_{id}"] = None
     user[f"cites_{id}"] = []
+    user[f"vse_naz_{id}"] = []
+    user[f"vse_naz_in_radius_{id}"] = []
     user[f"city_{id}"] = 0
     user[f"radius_{id}"] = 0
     user[f"city_in_radius_{id}"] = []
@@ -65,6 +74,8 @@ async def cmd_search(message: types.Message):
     user[f"city_number_{id}"] = 0
     user[f"index_city_{id}"] = 0
     user[f"product_1_{id}"] = []
+    user[f"set_1_{id}"] = []
+    user[f"set_2_{id}"] = []
     user[f"adress_{id}"] = 2
     user[f"product_{id}"] = 0
     user[f"have_{id}"] = 2
@@ -76,33 +87,29 @@ async def cmd_search(message: types.Message):
     user[f"citys_{id}"] = None
     user[f"number_{id}"] = 1
     id = message.from_user.id
-    user[f"product_1_{id}"] = worksheet.row_values(worksheet.find("Название сети").row)
-    user[f"product_1_{id}"].pop(0)
-    user[f"product_1_{id}"].pop(0)
-    user[f"product_1_{id}"].pop(0)
-    catalog_str = "\n".join(user[f"product_1_{id}"])
-    response = f"Список товаров:\n{catalog_str}"
+    response = f"Информационное сообщение"
     await message.reply(response)
-
-
 
 @dp.message_handler(text="Выбрать товар")
 async def command(message: types.Message, state: FSMContext):
     id = message.from_user.id
     await state.finish()
-    await States.TOVAR.set()
     global user
     user[f"all_cites_{id}"] = None
     user[f"cites_{id}"] = []
     user[f"city_{id}"] = 0
     user[f"radius_{id}"] = 0
     user[f"city_in_radius_{id}"] = []
+    user[f"vse_naz_{id}"] = []
+    user[f"vse_naz_in_radius_{id}"] = []
     user[f"row_{id}"] = 0
     user[f"num_city_{id}"] = -1
     user[f"col_index_{id}"] = 0
     user[f"city_number_{id}"] = 0
     user[f"index_city_{id}"] = 0
     user[f"product_1_{id}"] = []
+    user[f"set_1_{id}"] = []
+    user[f"set_2_{id}"] = []
     user[f"adress_{id}"] = 2
     user[f"product_{id}"] = 0
     user[f"have_{id}"] = 2
@@ -113,79 +120,152 @@ async def command(message: types.Message, state: FSMContext):
     user[f"longitude_{id}"] = None
     user[f"citys_{id}"] = None
     user[f"number_{id}"] = 1
-    keyboard = types.InlineKeyboardMarkup()
+    user[f"vse_tovari_{id}"] = []
+    user[f"katalog_{id}"] = None
+    user[f"vse_tovar_{id}"] = []
+    keyboard1 = types.InlineKeyboardMarkup()
     user[f"product_1_{id}"] = worksheet.row_values(worksheet.find("Название сети").row)
     user[f"product_1_{id}"].pop(0)
     user[f"product_1_{id}"].pop(0)
     user[f"product_1_{id}"].pop(0)
+    for i in range(len(user[f"product_1_{id}"])):
+        new = user[f"product_1_{id}"][i].split(' ')
+        user[f"vse_tovar_{id}"].append(new)
+    keyboard1.row(types.InlineKeyboardButton(text='Жидкости', callback_data='kat_Жидкость'), types.InlineKeyboardButton(text='Устройства', callback_data='kat_Устройства'))
+    keyboard1.row(types.InlineKeyboardButton(text='Бестобачная смесь', callback_data='kat_Бестобачная смесь'),types.InlineKeyboardButton(text='Табак', callback_data='kat_Табак'))
+    keyboard1.row(types.InlineKeyboardButton(text='Испарители', callback_data='kat_Испарители'),types.InlineKeyboardButton(text='Катриджи', callback_data='kat_Катридж'))
+    keyboard1.row(types.InlineKeyboardButton(text='Однаразки', callback_data='kat_Однаразки'),types.InlineKeyboardButton(text='Жевательный табак', callback_data='kat_Жевательный табак'))
+    await bot.send_message(id, f'Каталог', reply_markup=keyboard1)
 
-    print(user[f"product_1_{id}"])
-    for i in range(5):
-        if user[f"product_1_{id}"][user[f"product_{id}"]] != None:
-            callback_data = f'select_product_{user[f"product_1_{id}"][user[f"product_{id}"]]}'
-            keyboard.add(types.InlineKeyboardButton(text=user[f"product_1_{id}"][user[f"product_{id}"]], callback_data=callback_data))
-            user[f"product_{id}"] += 1
-        else:
-            break
-    inline_btn1 = InlineKeyboardButton('⏪', callback_data='btn1')
-    inline_btn2 = InlineKeyboardButton('⏩', callback_data='btn2')
-    keyboard.add(inline_btn1, inline_btn2)
-    message = (f'Ассортимент | страница {user[f"list_products_{id}"]}')
-    await bot.send_message(int(id), message, reply_markup=keyboard)
+@dp.callback_query_handler(lambda callback_query: callback_query.data.startswith("kat_"), state="*")
+async def process_another_callback_query(callback_query: types.CallbackQuery, state: FSMContext):
+    id = callback_query.from_user.id
+    global user
+    le_2 = callback_query.data[4:].split(' ')
+    if len(le_2) > 1:
+        user[f"katalog_{id}"] = le_2[0]
+    if len(le_2) == 1:
+        user[f"katalog_{id}"] = callback_query.data[4:]
+    lisst(user[f"vse_tovar_{id}"],user[f"vse_tovari_{id}"],user[f"katalog_{id}"])
+    print(user[f"vse_tovari_{id}"])
+    for i in range(len(user[f"vse_tovari_{id}"])):
+        pass
+    keyboard = InlineKeyboardMarkup()
+    try:
+        inline_btn1 = InlineKeyboardButton('⏪', callback_data='btn1') #but1
+        inline_btn2 = InlineKeyboardButton('⏩', callback_data='btn2') #but2
+        if user[f"product_{id}"] < 0: # проверка на первый товар
+            user[f"product_{id}"] = 0
+        for i in range(5):
+            try:
+                callback_data = f'select_product_{" ".join(user[f"vse_tovari_{id}"][i])}'
+                keyboard.add(types.InlineKeyboardButton(text=" ".join(user[f"vse_tovari_{id}"][i]), callback_data=callback_data))
+            except:
+                pass
+        await callback_query.message.edit_text(f'Ассортимент | страница {user[f"list_products_{id}"]}', reply_markup=keyboard.row(inline_btn1, inline_btn2))
+    except:
+        inline_kb = InlineKeyboardMarkup(row_width=1)
+        inline_kb.add(InlineKeyboardButton('⏪', callback_data='btn1'))
+        await callback_query.message.edit_text('Товары кончились', reply_markup=inline_kb)
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "btn2", state=States.TOVAR)
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "btn2")
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup()
+    def bn(num:int):
+        callback_data = f'select_product_{" ".join(user[f"vse_tovari_{id}"][num])}'
+        keyboard.add(types.InlineKeyboardButton(text=" ".join(user[f"vse_tovari_{id}"][num]), callback_data=callback_data))
     await bot.answer_callback_query(callback_query.id)
     global user
     id = callback_query.from_user.id
     try:
         print('+1:',user[f"product_{id}"],end=' | ')
         user[f"list_products_{id}"] += 1
+        user[f"product_{id}"] += 5
         inline_btn1 = InlineKeyboardButton('⏪', callback_data='btn1')
         inline_btn2 = InlineKeyboardButton('⏩', callback_data='btn2')
-        if user[f"product_{id}"] <= 1:
-            user[f"product_{id}"] = 2
-        for i in range(user[f"product_{id}"], user[f"product_{id}"] + 5):
-            if i < len(user[f"product_1_{id}"]) and user[f"product_1_{id}"][i] != '':
-                user[f"product_{id}"] += 1
-                callback_data = f'select_product_{user[f"product_1_{id}"][i]}'
-                keyboard.add(types.InlineKeyboardButton(text=user[f"product_1_{id}"][i], callback_data=callback_data))
+        print(user[f"vse_tovari_{id}"])
+        nnn = len(user[f"vse_tovari_{id}"])
+        if nnn >= 6:
+            for i in range(user[f"product_{id}"], user[f"product_{id}"] + 5):
+                try:
+                    callback_data = f'select_product_{" ".join(user[f"vse_tovari_{id}"][i])}'
+                    keyboard.add(types.InlineKeyboardButton(text=" ".join(user[f"vse_tovari_{id}"][i]), callback_data=callback_data))
+                except:
+                    pass
+        else:
+            try:
+                bn(0)
+                user[f"list_products_{id}"] = 1
+            except:
+                pass
+            try:
+                bn(1)
+                user[f"list_products_{id}"] = 1
+            except:
+                pass
+            try:
+                bn(2)
+                user[f"list_products_{id}"] = 1
+            except:
+                pass
+            try:
+                bn(3)
+                user[f"list_products_{id}"] = 1
+            except:
+                pass
+            try:
+                bn(4)
+                user[f"list_products_{id}"] = 1
+            except:
+                pass
         print('+2:',user[f"product_{id}"])
-        if user[f"product_{id}"] >= len(user[f"product_1_{id}"]):
+        try:
+            keyboard['inline_keyboard'][0]
+        except:
             raise IndexError
-        await callback_query.message.edit_text(f'Ассортимент | страница {user[f"list_products_{id}"]}', reply_markup=keyboard.row(inline_btn1, inline_btn2))
+        try:
+            await callback_query.message.edit_text(f'Ассортимент | страница {user[f"list_products_{id}"]}', reply_markup=keyboard.row(inline_btn1, inline_btn2))
+        except:
+            raise IndexError
     except IndexError:
         inline_kb = InlineKeyboardMarkup(row_width=1)
         inline_kb.add(InlineKeyboardButton('⏪', callback_data='btn1'))
         await callback_query.message.edit_text('Товары кончились', reply_markup=inline_kb)
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "btn1", state=States.TOVAR)
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "btn1")
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup()
     await bot.answer_callback_query(callback_query.id)
     global user
     id = callback_query.from_user.id
     try:
-        user[f"product_{id}"] = user[f"product_{id}"] - 5
+        print('-1:',user[f"product_{id}"],end=' | ')
+        user[f"product_{id}"] = user[f"product_{id}"] - 10
+        print('-2:',user[f"product_{id}"],end=' | ')
         user[f"list_products_{id}"] -= 1
+        if user[f"product_{id}"] <= 0:
+            user[f"product_{id}"] = 0
+            user[f"list_products_{id}"] = 1
+        print('-3:',user[f"product_{id}"])
         inline_btn1 = InlineKeyboardButton('⏪', callback_data='btn1')
         inline_btn2 = InlineKeyboardButton('⏩', callback_data='btn2')
-        if user[f"product_{id}"] <= 1:
-            user[f"product_{id}"] = 2
-        if user[f"list_products_{id}"] > 0:
-            for i in range(user[f"product_{id}"]-5, user[f"product_{id}"]):
-                if i < len(user[f"product_1_{id}"]) and user[f"product_1_{id}"][i] != '':
-                    callback_data = f'select_product_{user[f"product_1_{id}"][i]}'
-                    keyboard.add(types.InlineKeyboardButton(text=user[f"product_1_{id}"][i], callback_data=callback_data))
+        for i in range(user[f"product_{id}"], user[f"product_{id}"]+5):
+            try:
+                callback_data = f'select_product_{" ".join(user[f"vse_tovari_{id}"][i])}'
+                keyboard.add(types.InlineKeyboardButton(text=" ".join(user[f"vse_tovari_{id}"][i]), callback_data=callback_data))
+            except:
+                pass
+        try:
             await callback_query.message.edit_text(f'Ассортимент | страница {user[f"list_products_{id}"]}', reply_markup=keyboard.row(inline_btn1, inline_btn2))
-        else:
+        except:
             raise IndexError
     except IndexError:
-        user[f"product_{id}"] = 3
+        user[f"product_{id}"] = 0
         inline_kb = InlineKeyboardMarkup(row_width=1)
-        inline_kb.add(InlineKeyboardButton('⏩', callback_data='btn2'))
+        inline_kb.add(InlineKeyboardButton('⏩', callback_data='btn2')) 
         await callback_query.message.edit_text('Товары кончились', reply_markup=inline_kb)
+
+
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data.startswith("select_product_"), state="*")
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
@@ -196,22 +276,55 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
     col_index = worksheet.find(user[f"tovar_{id}"]).col
     user[f"citys_{id}"] = worksheet.col_values(3)
     haves = worksheet.col_values(col_index)
+    user[f"set_1_{id}"] = worksheet.col_values(2)
     for i in range(len(user[f"citys_{id}"])):
         if user[f"citys_{id}"][i] == None or user[f"citys_{id}"][i] == 'Адрес ТТ':
             pass
         if user[f"citys_{id}"][i] != None and user[f"citys_{id}"][i] != 'Адрес ТТ':
             if haves[i] == 'да':
+                user[f"set_2_{id}"].append(user[f"set_1_{id}"][i])
                 user[f"cites_{id}"].append(user[f"citys_{id}"][i])
+    #print(user[f"cites_{id}"])
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
     button_select_product = types.KeyboardButton("Выйти")
     markup.add(buttons.button4).add( button_select_product)
     await callback_query.message.answer(f'Выбран товар: {str(callback_query.data[15:])}\n\nОтправьте геолокацию', reply_markup=markup)
     await States.LOCATION.set()
 @dp.message_handler(content_types=types.ContentType.LOCATION, state=States.LOCATION)
-async def command(message: types.Message):
-    global user
+async def command(message: types.Message, state: FSMContext):
     id = message.from_user.id
+    global user
+    known_cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Нижний Новгород','Казань', 'Самара', 'Омск', 'Челябинск', 'Ростов-на-Дону', 'Уфа', 'Волгоград','Пермь', 'Красноярск', 'Воронеж', 'Саратов', 'Краснодар', 'Тольятти', 'Барнаул','Кудрово', 'Колпино', 'Мурино', 'Гатчина', 'Шушары', 'Кронштадт', 'Сосновый бор', 'Петергоф', 'Выборг', 'Пушкин', 'Красное Село', 'Ломоносов','Петрозаводск']
     geolocator = Nominatim(user_agent="user")
+    location = geolocator.reverse(f'{message.location.latitude},{message.location.longitude}')
+    loc_dict = location.raw
+    user_city = loc_dict['address']['city'].split(' ')
+    us_city = '' #!
+    for i in range(len(user_city)):
+        if user_city[i] in known_cities:
+            user_city.append(user_city[i])
+            us_city = user_city[-1]
+            break
+        try:
+            user_city[i+1]
+        except:
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+            button_cancel_product = types.KeyboardButton("Выйти")
+            markup.add(button_cancel_product)
+            await bot.send_message(id, f'Увы! Вашего города нету в базе', reply_markup=markup)
+            await state.finish()
+            return 1
+    prosto_city = []
+    in_city = []
+    for i in range(len(user[f"cites_{id}"])):
+        new = user[f"cites_{id}"][i].split(', ')
+        prosto_city.append(new)
+    user[f"cites_{id}"] = prosto_city
+    lisst(user[f"cites_{id}"],in_city, us_city)
+    user[f"cites_{id}"] = in_city
+    formatted_addresses = [' '.join(address) for address in user[f"cites_{id}"]]
+    user[f"cites_{id}"] = formatted_addresses
+    print(user[f"cites_{id}"])
     user[f"latitude_{id}"] = message.location.latitude
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
     button_cancel_product = types.KeyboardButton("Выйти")
@@ -222,7 +335,7 @@ async def command(message: types.Message):
 
 @dp.message_handler(state=States.RADIUS)
 async def command(message: types.Message, state: FSMContext):
-    if message.text.isdigit() == False:
+    if message.text.isdigit() != True:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
         button_cancel_product = types.KeyboardButton("Выйти")
         markup.add(button_cancel_product)
@@ -243,16 +356,17 @@ async def command(message: types.Message, state: FSMContext):
                 distance = geodesic(user_cord,shop_cord).meters
                 if user[f"radius_{id}"] >= distance:
                     user[f"num_city_{id}"] = i
+                    user[f"vse_naz_in_radius_{id}"].append(user[f"set_2_{id}"][i])
                     user[f"city_in_radius_{id}"].append(user[f"cites_{id}"][i])
                     print(user[f"cites_{id}"][i])
                     break
                 if user[f"radius_{id}"] < distance:
                     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-                    button_cancel_product = types.KeyboardButton("Выйти")
+                    button_cancel_product = types.KeyboardButton("Выйти")   
                     markup.add(button_cancel_product)
-                    await state.finish()
+                    #await state.finish()
                     await bot.send_message(id, f'Увы! В данном радиусе ничего не нашлось', reply_markup=markup)
-                    break
+                    #break
             except:
                 pass
         try:
@@ -263,7 +377,7 @@ async def command(message: types.Message, state: FSMContext):
             inline_kb = InlineKeyboardMarkup(row_width=2)
             inline_kb.add(inline_btn1, inline_btn2)
             shop_cord = (location.latitude,location.longitude)
-            await bot.send_message(id,f'Товар: {user[f"tovar_{id}"]}\n\nНаходиться по адресу: {user[f"city_in_radius_{id}"][user[f"city_{id}"]]}\n\nНа расстоянии: {round(geodesic(user_cord,shop_cord).meters)} метрах от вас.', reply_markup=inline_kb)
+            await bot.send_message(id,f'Товар: {user[f"tovar_{id}"]}\n\nНаходиться по адресу: {user[f"city_in_radius_{id}"][user[f"city_{id}"]]}\nСеть магазина: {user[f"vse_naz_in_radius_{id}"][user[f"city_{id}"]]}\nНа расстоянии: {round(geodesic(user_cord,shop_cord).meters)} метрах от вас.', reply_markup=inline_kb)
             location_message = await bot.send_location(chat_id,location.latitude,location.longitude)
             user[f"location_message_id_{id}"] = location_message.message_id
             await state.finish()   
@@ -287,6 +401,7 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
                 user_cord = (user[f"latitude_{id}"],user[f"longitude_{id}"])
                 distance = geodesic(user_cord,shop_cord).meters
                 if user[f"radius_{id}"] >= distance:
+                    user[f"vse_naz_in_radius_{id}"].append(user[f"set_2_{id}"][i])
                     user[f"city_in_radius_{id}"].append(user[f"cites_{id}"][i])
                     user[f"num_city_{id}"] = i
                     print(user[f"cites_{id}"][i])
@@ -315,7 +430,7 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
         #print(6)
         #print(shop_cord)
         await callback_query.message.edit_text(
-            f'Товар: {user[f"tovar_{id}"]}\n\nНаходится по адресу: {adress}\n\nНа расстоянии: {round(geodesic(user_cord, shop_cord).meters)} метрах от вас.',reply_markup=inline_kb)
+            f'Товар: {user[f"tovar_{id}"]}\n\nНаходится по адресу: {adress}\nСеть магазина: {user[f"vse_naz_in_radius_{id}"][user[f"city_{id}"]]}\nНа расстоянии: {round(geodesic(user_cord, shop_cord).meters)} метрах от вас.',reply_markup=inline_kb)
         location_message = await bot.send_location(chat_id, location.latitude, location.longitude)
         user[f"location_message_id_{id}"] = location_message.message_id
         await state.finish()
@@ -356,7 +471,7 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
         if user[f"location_message_id_{id}"] != None:
             await bot.delete_message(id, user[f"location_message_id_{id}"])
         #print(6)
-        await callback_query.message.edit_text(f'Товар: {user[f"tovar_{id}"]}\n\nНаходится по адресу: {adress}\n\nНа расстоянии: {r_radius} метрах от вас',reply_markup=inline_kb)
+        await callback_query.message.edit_text(f'Товар: {user[f"tovar_{id}"]}\n\nНаходится по адресу: {adress}\nСеть магазина: {user[f"vse_naz_in_radius_{id}"][-user[f"number_{id}"]]}\nНа расстоянии: {r_radius} метрах от вас',reply_markup=inline_kb)
         #print(7)
         location_message = await bot.send_location(id, location.latitude, location.longitude)
         #print(8)
@@ -393,7 +508,11 @@ async def handle_text(message: types.Message):
         callback_data = f'select_product_{tovar_}'  
         keyboard.add(types.InlineKeyboardButton(text=tovar_, callback_data=callback_data))
         await message.reply(f"Информация о товаре {tovar_}: В наличии!\nПодтвердите товар нажав на кнопку.", reply_markup=keyboard)
-
+    if user_input.lower() not in user[f"product_1_{id}"]:
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+        button_cancel_product = types.KeyboardButton("Выйти")   
+        markup.add(button_cancel_product)
+        await message.reply(f"Увы! Ничего не найдено", reply_markup=markup)
 if __name__ == '__main__':
     from aiogram import executor
     executor.start_polling(dp, skip_updates=True)
