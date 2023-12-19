@@ -361,12 +361,12 @@ async def command(message: types.Message, state: FSMContext):
                     user[f"city_in_radius_{id}"].append(user[f"cites_{id}"][i])
                     #debug print(user[f"cites_{id}"][i])
                     break
-                if user[f"radius_{id}"] < distance and kol_raz >= 20:
+                if user[f"radius_{id}"] < distance and kol_raz >= 50:
                     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
                     button_cancel_product = types.KeyboardButton("Выйти")   
                     markup.add(button_cancel_product)
                     await state.finish()
-                    await bot.send_message(id, f'Увы! В данном радиусе ничего не нашлось', reply_markup=markup)
+                    await bot.send_message(id, f'В заданном радиусе магазины не найдены\nПопробуйте увеличить радиус', reply_markup=markup)
                     break
             except:
                 pass
