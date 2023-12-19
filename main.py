@@ -86,8 +86,7 @@ async def cmd_search(message: types.Message):
     user[f"longitude_{id}"] = None
     user[f"citys_{id}"] = None
     user[f"number_{id}"] = 1
-    id = message.from_user.id
-    response = f"Информационное сообщение"
+    response = f"Напишите название нужного товара так, как указано на офицальном сайте!\n\nПример:\nУстройство MINICAN 3 PRO\nКартридж MINICAN\nЖидкость SKALA"
     await message.reply(response)
 
 @dp.message_handler(text="Выбрать товар")
@@ -343,7 +342,8 @@ async def command(message: types.Message, state: FSMContext):
         global user
         id = message.from_user.id
         chat_id = message.from_user.id
-        await bot.send_message(id,f'Ожидайте, идет поиск города!')
+        location_message = await bot.send_message(id,f'Идет поиск магазина!')
+        wait_city = location_message.message_id
         geolocator = Nominatim(user_agent="user-chrome")
         user[f"radius_{id}"] = int(message.text)
         user[f"city_{id}"] = 0
@@ -380,7 +380,8 @@ async def command(message: types.Message, state: FSMContext):
             inline_kb = InlineKeyboardMarkup(row_width=2)
             inline_kb.add(inline_btn1, inline_btn2)
             shop_cord = (location.latitude,location.longitude)
-            
+            if wait_city != None:
+                await bot.delete_message(id, wait_city)
             await bot.send_message(id,f'Товар: {user[f"tovar_{id}"]}\n\nНаходиться по адресу: {user[f"city_in_radius_{id}"][user[f"city_{id}"]]}\nСеть магазина: {set_in_adress[1]}\nНа расстоянии: {round(geodesic(user_cord,shop_cord).meters)} метрах от вас.', reply_markup=inline_kb)
             location_message = await bot.send_location(chat_id,location.latitude,location.longitude)
             user[f"location_message_id_{id}"] = location_message.message_id
@@ -392,7 +393,7 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
     global user
     id = callback_query.from_user.id
     await callback_query.message.edit_text(
-            f'Ожидайте, идет поиск города')
+            f'Идет поиск магазина!')
     chat_id = callback_query.from_user.id
     geolocator = Nominatim(user_agent="user-chrome")
     user[f"city_{id}"] = user[f"city_{id}"] + 1
@@ -452,7 +453,7 @@ async def command(callback_query: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "btn_back")
 async def command(callback_query: types.CallbackQuery, state: FSMContext):
-    await callback_query.message.edit_text(f'Ожидайте, идет поиск города')
+    await callback_query.message.edit_text(f'Идет поиск магазина!')
     id = callback_query.from_user.id
     global user
     geolocator = Nominatim(user_agent="user-chrome")
